@@ -23,7 +23,6 @@ class Analyst(Resource):
         return self.analyst(chats)
 
     def analyst(self, chats):
-
         # 대화 상대 이름
         opponent = chats.readline().decode('utf-8').split()[0]
 
@@ -36,7 +35,8 @@ class Analyst(Resource):
         # 씹힘 세기
         ignore_cnt = self.count_ignore(chats)
 
-        # 시간대 세기
+        # 시간대별로 세기
+        time_slot_cnt = self.count_time_slot(chats)
 
         # 답장 빈도 세기
 
@@ -95,6 +95,58 @@ class Analyst(Resource):
                 print(curr - before)
 
         return cnt
+
+    def count_time_slot(chats, minute_interval):
+        time_slot_cnt = {}
+
+        for chat in chats:
+
+            # 날짜 - 메세지 추출
+            chat_split = chat.split(" : ")
+
+            # 날짜만 제외
+            if len(chat_split) == 1:
+                continue
+
+            # 날짜 얻기
+            year, month, day, hour, minute = self.get_datetime(chat_split)
+
+            # interval에 따라 이 시간에 맞는 시간대 정하기
+            remainder = (60 * hour + minute) % minute_interval
+            slot_h_m = ()
+            # 현재 시간보다 이른 시간대의 경우
+            if remainder < (minute_interval / 2):
+                slot_minute = minute - remainder
+                if slot_minute < 0:
+                    slot_minute = 60 - slot_minute
+                    hour -= 1
+                slot_h_m = (hour, slot_minute)
+            # 현재 시간보다 나중 시간대의 경우
+            else:
+                slot_minute = minute - remainder + minute_interval
+                hour += slot_minute // 60
+                slot_minute %= 60
+                slot_h_m = (hour, slot_minute)
+
+            """
+            # dictionary에 넣기
+            try:
+                # list에 추가
+                time_slot_cnt[slot_h_m].append(chat_split[1])
+            except KeyError as ke:
+                # dictionary에 없으면 list를 추가
+                time_slot_cnt[slot_h_m] = [chat_split[1]]
+            """
+
+            # dictionary에 카운트하기
+            try:
+                # 해당 slot의 카운트 증가
+                time_slot_cnt[slot_h_m] += 1
+            except KeyError as ke:
+                # dictionary에 없으면 값 추가
+                time_slot_cnt[slot_h_m] = 1
+
+        return time_slot_cnt
 
     def get_datetime(self, chat):
         tmp = chat[0].split("년")
